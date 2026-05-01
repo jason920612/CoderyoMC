@@ -82,6 +82,10 @@ public class GlobalConfiguration extends ConfigurationPart {
 
     public class Coderyo extends ConfigurationPart {
         public ParallelWorldTicking parallelWorldTicking;
+        public ParallelChunkPipeline parallelChunkPipeline;
+        public AsyncEntityAi asyncEntityAi;
+        public SchedulerSafety schedulerSafety;
+        public NetworkIo networkIo;
 
         public class ParallelWorldTicking extends ConfigurationPart {
             @Comment(
@@ -93,6 +97,36 @@ public class GlobalConfiguration extends ConfigurationPart {
             @Comment("Worker thread count for experimental parallel world ticking. Set to 0 to use an automatic value.")
             @Constraints.Min(0)
             public int threads = 0;
+        }
+
+        public class ParallelChunkPipeline extends ConfigurationPart {
+            @Comment("Experimental: allow Coderyo-specific chunk pipeline concurrency beyond upstream Paper defaults.")
+            public boolean enabled = false;
+
+            @Comment("Warn when a synchronous chunk load blocks the tick thread for at least this many milliseconds. Set to -1 to disable.")
+            public int syncLoadWarnMillis = 50;
+        }
+
+        public class AsyncEntityAi extends ConfigurationPart {
+            @Comment("Experimental: allow future entity AI/pathfinding snapshot computation off the owning tick thread.")
+            public boolean enabled = false;
+
+            @Comment("Maximum async AI worker threads. Set to 0 to use an automatic value.")
+            @Constraints.Min(0)
+            public int threads = 0;
+        }
+
+        public class SchedulerSafety extends ConfigurationPart {
+            @Comment("Log stack traces when async threads attempt to enter APIs guarded by main-thread or tick-thread checks.")
+            public boolean logAsyncApiViolations = true;
+
+            @Comment("Fail fast on async API violations instead of only logging where Paper allows soft warnings.")
+            public boolean failFastAsyncApiViolations = false;
+        }
+
+        public class NetworkIo extends ConfigurationPart {
+            @Comment("Experimental: enable Coderyo-specific packet processing and IO optimizations after ownership checks are added.")
+            public boolean enabled = false;
         }
     }
 
