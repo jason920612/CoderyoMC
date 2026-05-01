@@ -78,6 +78,24 @@ public class GlobalConfiguration extends ConfigurationPart {
         GlobalConfiguration.instance = instance;
     }
 
+    public Coderyo coderyo;
+
+    public class Coderyo extends ConfigurationPart {
+        public ParallelWorldTicking parallelWorldTicking;
+
+        public class ParallelWorldTicking extends ConfigurationPart {
+            @Comment(
+                "Experimental: tick loaded worlds in parallel. This is disabled by default because Bukkit/Paper plugins " +
+                "and parts of vanilla server state still assume serialized world ticking."
+            )
+            public boolean enabled = false;
+
+            @Comment("Worker thread count for experimental parallel world ticking. Set to 0 to use an automatic value.")
+            @Constraints.Min(0)
+            public int threads = 0;
+        }
+    }
+
     @Setting(Configuration.VERSION_FIELD)
     public int version = CURRENT_VERSION;
 

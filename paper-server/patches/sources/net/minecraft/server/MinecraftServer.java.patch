@@ -1158,6 +1158,7 @@
          this.updateEffectiveRespawnData();
  
 +        this.isIteratingOverLevels = true; // Paper - Throw exception on world create while being ticked
++        if (!io.coderyo.mc.concurrent.ParallelWorldTicker.tickLevels(this, haveTime)) { // CoderyoMC - experimental parallel world ticking
          for (ServerLevel level : this.getAllLevels()) {
 +            level.hasPhysicsEvent = org.bukkit.event.block.BlockPhysicsEvent.getHandlerList().getRegisteredListeners().length > 0; // Paper - BlockPhysicsEvent
 +            level.hasEntityMoveEvent = io.papermc.paper.event.entity.EntityMoveEvent.getHandlerList().getRegisteredListeners().length > 0; // Paper - Add EntityMoveEvent
@@ -1171,6 +1172,7 @@
              profiler.pop();
 +            level.explosionDensityCache.clear(); // Paper - Optimize explosions
          }
++        } // CoderyoMC - experimental parallel world ticking
 +        this.isIteratingOverLevels = false; // Paper - Throw exception on world create while being ticked
  
          profiler.popPush("connection");
