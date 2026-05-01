@@ -29,6 +29,7 @@ import io.papermc.paper.configuration.transformation.world.FeatureSeedsGeneratio
 import io.papermc.paper.configuration.transformation.world.LegacyPaperWorldConfig;
 import io.papermc.paper.configuration.transformation.world.versioned.V29_ZeroWorldHeight;
 import io.papermc.paper.configuration.transformation.world.versioned.V30_RenameFilterNbtFromSpawnEgg;
+import io.papermc.paper.configuration.transformation.world.versioned.V32_RemoveLitRedstoneOre;
 import io.papermc.paper.configuration.type.BooleanOrDefault;
 import io.papermc.paper.configuration.type.DespawnRange;
 import io.papermc.paper.configuration.type.Duration;
@@ -282,6 +283,7 @@ public class PaperConfigurations extends Configurations<GlobalConfiguration, Wor
         final ConfigurationTransformation.VersionedBuilder versionedBuilder = Transformations.versionedBuilder();
         V29_ZeroWorldHeight.apply(versionedBuilder);
         V30_RenameFilterNbtFromSpawnEgg.apply(versionedBuilder);
+        V32_RemoveLitRedstoneOre.apply(versionedBuilder);
         // ADD FUTURE VERSIONED TRANSFORMS TO versionedBuilder HERE
         versionedBuilder.build().apply(node);
     }
