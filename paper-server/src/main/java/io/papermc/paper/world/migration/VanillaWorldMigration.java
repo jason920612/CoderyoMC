@@ -11,6 +11,7 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.UUID;
 import net.minecraft.resources.ResourceKey;
+import net.minecraft.nbt.NbtOps;
 import net.minecraft.util.datafix.DataFixers;
 import net.minecraft.world.clock.ServerClockManager;
 import net.minecraft.world.level.Level;
@@ -50,6 +51,7 @@ final class VanillaWorldMigration {
         }
 
         migrateSavedData(context);
+        createWorldGenSettings(context, levelDataResult.dataTag());
         createLevelOverrides(context, levelDataResult.dataTag());
         migrateLegacyPdc(context, levelDataResult.dataTag());
 
@@ -77,6 +79,28 @@ final class VanillaWorldMigration {
             deleteLegacyRootCopyIfMigrated(context, TimerQueue.TYPE);
             deleteLegacyRootCopyIfMigrated(context, WanderingTraderData.TYPE);
         }
+    }
+
+    private static void createWorldGenSettings(
+        final WorldMigrationContext context,
+        final @Nullable Dynamic<?> levelData
+    ) {
+        final Path worldGenSettingsPath = WorldMigrationSupport.savedDataPath(context.targetDataRoot(), WorldGenSettings.TYPE);
+        if (Files.exists(worldGenSettingsPath) || levelData == null) {
+            return;
+        }
+
+        final WorldGenSettings worldGenSettings = levelData.get("world_gen_settings")
+            .result()
+            .flatMap(dynamic -> WorldGenSettings.CODEC.parse(context.registryAccess().createSerializationContext(NbtOps.INSTANCE), dynamic.convert(NbtOps.INSTANCE).getValue()).result())
+            .orElse(null);
+        if (worldGenSettings == null) {
+            return;
+        }
+
+        final SavedDataStorage targetStorage = new SavedDataStorage(context.targetDataRoot(), DataFixers.getDataFixer(), context.registryAccess());
+        targetStorage.set(WorldGenSettings.TYPE, worldGenSettings);
+        targetStorage.saveAndJoin();
     }
 
     private static void deleteLegacyRootCopyIfMigrated(final WorldMigrationContext context, final SavedDataType<?> type) throws IOException {
