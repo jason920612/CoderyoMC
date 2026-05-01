@@ -7,6 +7,7 @@ import net.minecraft.server.level.ServerLevel;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -18,6 +19,7 @@ public final class ParallelWorldTicker {
     private static final AtomicInteger WORKER_ID = new AtomicInteger();
     private static volatile ExecutorService executor;
     private static volatile int executorThreads;
+    private static volatile boolean disabledAfterFailure;
 
     private ParallelWorldTicker() {
     }
@@ -25,6 +27,9 @@ public final class ParallelWorldTicker {
     public static boolean tickLevels(final MinecraftServer server, final BooleanSupplier haveTime) {
         final GlobalConfiguration configuration = GlobalConfiguration.get();
         if (configuration == null || configuration.coderyo == null || configuration.coderyo.parallelWorldTicking == null || !configuration.coderyo.parallelWorldTicking.enabled) {
+            return false;
+        }
+        if (disabledAfterFailure) {
             return false;
         }
 
@@ -41,8 +46,27 @@ public final class ParallelWorldTicker {
             futures[i] = CompletableFuture.runAsync(() -> tickLevel(level, haveTime), executor);
         }
 
-        CompletableFuture.allOf(futures).join();
+        try {
+            CompletableFuture.allOf(futures).join();
+        } catch (final CompletionException ex) {
+            disabledAfterFailure = true;
+            MinecraftServer.LOGGER.error("Disabling Coderyo experimental parallel world ticking after worker failure", ex.getCause() == null ? ex : ex.getCause());
+            throw ex;
+        }
         return true;
+    }
+
+    public static void shutdown() {
+        final ExecutorService oldExecutor;
+        synchronized (ParallelWorldTicker.class) {
+            oldExecutor = executor;
+            executor = null;
+            executorThreads = 0;
+            disabledAfterFailure = false;
+        }
+        if (oldExecutor != null) {
+            oldExecutor.shutdownNow();
+        }
     }
 
     private static List<ServerLevel> snapshot(final Iterable<ServerLevel> levels) {
