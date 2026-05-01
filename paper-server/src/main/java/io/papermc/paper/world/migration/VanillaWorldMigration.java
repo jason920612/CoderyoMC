@@ -8,15 +8,21 @@ import io.papermc.paper.world.saveddata.PaperWorldPDC;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.nbt.NbtOps;
 import net.minecraft.util.datafix.DataFixers;
 import net.minecraft.world.clock.ServerClockManager;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.dimension.LevelStem;
 import net.minecraft.world.level.gamerules.GameRuleMap;
 import net.minecraft.world.level.levelgen.WorldGenSettings;
+import net.minecraft.world.level.levelgen.WorldDimensions;
+import net.minecraft.world.level.levelgen.WorldOptions;
 import net.minecraft.world.level.saveddata.SavedDataType;
 import net.minecraft.world.level.saveddata.WanderingTraderData;
 import net.minecraft.world.level.saveddata.WeatherData;
@@ -90,17 +96,35 @@ final class VanillaWorldMigration {
             return;
         }
 
-        final WorldGenSettings worldGenSettings = levelData.get("world_gen_settings")
-            .result()
-            .flatMap(dynamic -> WorldGenSettings.CODEC.parse(context.registryAccess().createSerializationContext(NbtOps.INSTANCE), dynamic.convert(NbtOps.INSTANCE).getValue()).result())
-            .orElse(null);
-        if (worldGenSettings == null) {
-            return;
-        }
+        final WorldGenSettings worldGenSettings = readWorldGenSettings(context, levelData);
 
         final SavedDataStorage targetStorage = new SavedDataStorage(context.targetDataRoot(), DataFixers.getDataFixer(), context.registryAccess());
         targetStorage.set(WorldGenSettings.TYPE, worldGenSettings);
         targetStorage.saveAndJoin();
+        LOGGER.info("Created missing world generation settings for world '{}' ({})", context.worldName(), context.dimensionKey().identifier());
+    }
+
+    private static WorldGenSettings readWorldGenSettings(final WorldMigrationContext context, final Dynamic<?> levelData) {
+        WorldGenSettings migratedSettings = parseWorldGenSettings(context, levelData, "world_gen_settings");
+        if (migratedSettings == null) {
+            migratedSettings = parseWorldGenSettings(context, levelData, "WorldGenSettings");
+        }
+        if (migratedSettings != null) {
+            return migratedSettings;
+        }
+
+        final long seed = levelData.get("RandomSeed").asLong(WorldOptions.randomSeed());
+        final boolean generateStructures = levelData.get("MapFeatures").asBoolean(true);
+        final Map<ResourceKey<LevelStem>, LevelStem> dimensions = new HashMap<>();
+        context.registryAccess().lookupOrThrow(Registries.LEVEL_STEM).listElements().forEach(reference -> dimensions.put(reference.key(), reference.value()));
+        return new WorldGenSettings(new WorldOptions(seed, generateStructures, false), new WorldDimensions(dimensions));
+    }
+
+    private static @Nullable WorldGenSettings parseWorldGenSettings(final WorldMigrationContext context, final Dynamic<?> levelData, final String key) {
+        return levelData.get(key)
+            .result()
+            .flatMap(dynamic -> WorldGenSettings.CODEC.parse(context.registryAccess().createSerializationContext(NbtOps.INSTANCE), dynamic.convert(NbtOps.INSTANCE).getValue()).result())
+            .orElse(null);
     }
 
     private static void deleteLegacyRootCopyIfMigrated(final WorldMigrationContext context, final SavedDataType<?> type) throws IOException {
