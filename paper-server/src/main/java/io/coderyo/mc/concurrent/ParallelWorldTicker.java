@@ -40,10 +40,11 @@ public final class ParallelWorldTicker {
         }
 
         final ExecutorService executor = executor(threadCount);
+        final TickEventState eventState = TickEventState.capture();
         final CompletableFuture<?>[] futures = new CompletableFuture<?>[levels.size()];
         for (int i = 0; i < levels.size(); ++i) {
             final ServerLevel level = levels.get(i);
-            futures[i] = CompletableFuture.runAsync(() -> tickLevel(level, haveTime), executor);
+            futures[i] = CompletableFuture.runAsync(() -> tickLevel(level, haveTime, eventState), executor);
         }
 
         try {
@@ -121,11 +122,20 @@ public final class ParallelWorldTicker {
         }
     }
 
-    private static void tickLevel(final ServerLevel level, final BooleanSupplier haveTime) {
-        level.hasPhysicsEvent = org.bukkit.event.block.BlockPhysicsEvent.getHandlerList().getRegisteredListeners().length > 0;
-        level.hasEntityMoveEvent = io.papermc.paper.event.entity.EntityMoveEvent.getHandlerList().getRegisteredListeners().length > 0;
+    private static void tickLevel(final ServerLevel level, final BooleanSupplier haveTime, final TickEventState eventState) {
+        level.hasPhysicsEvent = eventState.hasPhysicsEvent;
+        level.hasEntityMoveEvent = eventState.hasEntityMoveEvent;
         level.updateLagCompensationTick();
         level.tick(haveTime);
         level.explosionDensityCache.clear();
+    }
+
+    private record TickEventState(boolean hasPhysicsEvent, boolean hasEntityMoveEvent) {
+        private static TickEventState capture() {
+            return new TickEventState(
+                org.bukkit.event.block.BlockPhysicsEvent.getHandlerList().getRegisteredListeners().length > 0,
+                io.papermc.paper.event.entity.EntityMoveEvent.getHandlerList().getRegisteredListeners().length > 0
+            );
+        }
     }
 }
